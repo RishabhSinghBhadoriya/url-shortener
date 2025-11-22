@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - URL Shortener</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <h1>🔗 URL Shortener</h1>
+        <nav>
+          <a href="/" class="nav-link">Dashboard</a>
+          <a href="/healthz" class="nav-link" target="_blank">Health</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <%- body %>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2024 URL Shortener. Built with Node.js & Express.</p>
+    </div>
+  </footer>
+</body>
+</html>
