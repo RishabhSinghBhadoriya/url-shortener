@@ -75,11 +75,10 @@ http://localhost:3000
 ```markdown
 project/
 ├── views/        # EJS templates
-├── public/       # CSS, client JS
+├── public/       # CSS
 ├── routes/       # Express routes
-├── db/           # Database queries
-├── utils/        # Helper utilities
-├── app.js        # Main entry file
+├── database/     # Database queries
+├── server.js     # Main entry file
 └── README.md
 ```
 
