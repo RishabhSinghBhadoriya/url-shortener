@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const db = require('./database/db');
 const apiRoutes = require('./routes/api');
 const pageRoutes = require('./routes/pages');
 
@@ -17,17 +18,26 @@ app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// In-memory storage
-global.links = new Map();
-
 // Health check endpoint
-app.get('/healthz', (req, res) => {
+app.get('/healthz', async (req, res) => {
   const uptime = Math.floor((Date.now() - startTime) / 1000);
+  
+  // Check database connection
+  let dbStatus = 'disconnected';
+  try {
+    await db.query('SELECT 1');
+    dbStatus = 'connected';
+  } catch (error) {
+    dbStatus = 'error';
+  }
+
   res.status(200).json({
     ok: true,
     version: '1.0',
     uptime: uptime,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: dbStatus,
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -49,7 +59,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Base URL: ${process.env.BASE_URL}`);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    await db.initDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Base URL: ${process.env.BASE_URL}`);
+      console.log('Database connected successfully');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

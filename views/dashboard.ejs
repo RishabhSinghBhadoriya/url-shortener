@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - URL Shortener</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <h1>🔗 URL Shortener</h1>
+        <nav>
+          <a href="/" class="nav-link active">Dashboard</a>
+          <a href="/healthz" class="nav-link" target="_blank">Health</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ADD LINK FORM SECTION -->
+    <section class="add-link-section">
+      <h2>Create Short Link</h2>
+      <form id="addLinkForm">
+        <div class="form-group">
+          <label for="url">Target URL *</label>
+          <input 
+            type="url" 
+            id="url" 
+            name="url" 
+            placeholder="https://example.com/your-long-url" 
+            required
+          >
+          <span class="error-message" id="urlError"></span>
+        </div>
+        
+        <div class="form-group">
+          <label for="code">Custom Code (optional)</label>
+          <input 
+            type="text" 
+            id="code" 
+            name="code" 
+            placeholder="mycode (6-8 alphanumeric characters)"
+            pattern="[A-Za-z0-9]{6,8}"
+            title="6-8 alphanumeric characters"
+          >
+          <span class="help-text">Leave empty for random code</span>
+          <span class="error-message" id="codeError"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          Create Short Link
+        </button>
+      </form>
+
+      <div id="successMessage" class="success-message" style="display: none;">
+        <strong>Success!</strong> Link created: <a href="" id="shortLinkUrl" target="_blank"></a>
+        <button onclick="copyToClipboard()" class="btn-copy">Copy</button>
+      </div>
+    </section>
+
+    <!-- LINKS TABLE SECTION -->
+    <section class="links-section">
+      <div class="section-header">
+        <h2>All Links (<span id="linkCount"><%= links.length %></span>)</h2>
+        <input 
+          type="search" 
+          id="searchInput" 
+          placeholder="Search by code or URL..." 
+          class="search-input"
+        >
+      </div>
+
+      <% if (links.length === 0) { %>
+        <div class="empty-state">
+          <p>📭 No links yet. Create your first short link above!</p>
+        </div>
+      <% } else { %>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Short Code</th>
+                <th>Target URL</th>
+                <th>Clicks</th>
+                <th>Last Clicked</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="linksTableBody">
+              <% links.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(link => { %>
+                <tr data-code="<%= link.code %>" data-url="<%= link.url %>">
+                  <td>
+                    <a href="/<%= link.code %>" target="_blank" class="code-link">
+                      <%= link.code %>
+                    </a>
+                  </td>
+                  <td class="url-cell">
+                    <span class="url-text" title="<%= link.url %>">
+                      <%= link.url %>
+                    </span>
+                  </td>
+                  <td><%= link.clicks %></td>
+                  <td>
+                    <%= link.lastClicked 
+                      ? new Date(link.lastClicked).toLocaleString() 
+                      : 'Never' 
+                    %>
+                  </td>
+                  <td class="actions-cell">
+                    <a href="/code/<%= link.code %>" class="btn btn-small">Stats</a>
+                    <button 
+                      onclick="copyShortLink('<%= baseUrl %>/<%= link.code %>')" 
+                      class="btn btn-small"
+                    >
+                      Copy
+                    </button>
+                    <button 
+                      onclick="deleteLink('<%= link.code %>')" 
+                      class="btn btn-small btn-danger"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2024 URL Shortener. Built with Node.js & Express.</p>
+    </div>
+  </footer>
+
+  <script>
+    const form = document.getElementById('addLinkForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const successMessage = document.getElementById('successMessage');
+    const searchInput = document.getElementById('searchInput');
+
+    // FORM SUBMISSION - This is where users ADD their links
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Clear previous errors
+      document.getElementById('urlError').textContent = '';
+      document.getElementById('codeError').textContent = '';
+      successMessage.style.display = 'none';
+
+      const url = document.getElementById('url').value.trim();
+      const code = document.getElementById('code').value.trim();
+
+      // Disable submit button during request
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating...';
+
+      try {
+        const response = await fetch('/api/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, code: code || undefined })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          // Show success message
+          const shortLinkUrl = document.getElementById('shortLinkUrl');
+          shortLinkUrl.href = data.shortUrl;
+          shortLinkUrl.textContent = data.shortUrl;
+          successMessage.style.display = 'block';
+          
+          // Reset form
+          form.reset();
+          
+          // Reload page after 2 seconds to show new link in table
+          setTimeout(() => location.reload(), 2000);
+        } else {
+          // Show error messages
+          if (response.status === 409) {
+            document.getElementById('codeError').textContent = data.error;
+          } else if (data.error.includes('URL')) {
+            document.getElementById('urlError').textContent = data.error;
+          } else if (data.error.includes('code')) {
+            document.getElementById('codeError').textContent = data.error;
+          } else {
+            alert('Error: ' + data.error);
+          }
+        }
+      } catch (error) {
+        alert('Network error. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Short Link';
+      }
+    });
+
+    // SEARCH FUNCTIONALITY
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#linksTableBody tr');
+        
+        rows.forEach(row => {
+          const code = row.dataset.code.toLowerCase();
+          const url = row.dataset.url.toLowerCase();
+          
+          if (code.includes(searchTerm) || url.includes(searchTerm)) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // DELETE LINK FUNCTION
+    async function deleteLink(code) {
+      if (!confirm(`Are you sure you want to delete the link "${code}"?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/links/${code}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          const data = await response.json();
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        alert('Network error. Please try again.');
+      }
+    }
+
+    // COPY SHORT LINK FUNCTION
+    function copyShortLink(url) {
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Link copied to clipboard!');
+      }).catch(() => {
+        alert('Failed to copy link');
+      });
+    }
+
+    // COPY FROM SUCCESS MESSAGE
+    function copyToClipboard() {
+      const url = document.getElementById('shortLinkUrl').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Link copied to clipboard!');
+      });
+    }
+  </script>
+</body>
+</html>
