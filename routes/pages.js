@@ -116,7 +116,7 @@ router.get('/:code', async (req, res) => {
     ).catch(err => console.error('Error updating clicks:', err));
 
     // Log detailed click info asynchronously (doesn't block redirect)
-    const ipAddress = req.ip || req.connection.remoteAddress;
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
     const userAgent = req.get('user-agent');
     const referrer = req.get('referer') || req.get('referrer');
 

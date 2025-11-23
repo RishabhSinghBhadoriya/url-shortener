@@ -34,7 +34,6 @@ router.post('/links', async (req, res) => {
     if (!url || !isValidUrl(url)) {
       return res.status(400).json({ error: 'Invalid URL provided' });
     }
-
     // Generate or validate custom code
     let shortCode = code;
     if (shortCode) {
@@ -43,7 +42,6 @@ router.post('/links', async (req, res) => {
           error: 'Custom code must be 6-8 alphanumeric characters' 
         });
       }
-      
       // Check if code already exists
       const existing = await db.query(
         'SELECT id FROM links WHERE code = $1',
@@ -72,7 +70,6 @@ router.post('/links', async (req, res) => {
         return res.status(500).json({ error: 'Failed to generate unique code' });
       }
     }
-
     // Insert link into database
     const result = await db.query(
       'INSERT INTO links (code, url) VALUES ($1, $2) RETURNING *',
@@ -80,7 +77,6 @@ router.post('/links', async (req, res) => {
     );
 
     const link = result.rows[0];
-
     res.status(201).json({
       success: true,
       code: link.code,
